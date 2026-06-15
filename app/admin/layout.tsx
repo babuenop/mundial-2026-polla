@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import AdminSidebarLayout from './AdminSidebarLayout'
 
 export default async function AdminLayout({
   children,
@@ -20,24 +20,5 @@ export default async function AdminLayout({
 
   if (profile?.rol !== 'admin') redirect('/')
 
-  return (
-    <div>
-      <nav className="bg-gray-900 text-white px-6 py-3 flex gap-6 items-center">
-        <span className="font-bold">Admin</span>
-        <Link href="/admin/partidos" className="hover:underline">
-          Partidos
-        </Link>
-        <Link href="/admin/resultados" className="hover:underline">
-          Resultados
-        </Link>
-        <Link href="/admin/jugadores" className="hover:underline">
-          Jugadores
-        </Link>
-        <Link href="/admin/pronosticos" className="hover:underline">
-          Pronósticos
-        </Link>
-      </nav>
-      <main className="max-w-4xl mx-auto p-6">{children}</main>
-    </div>
-  )
+  return <AdminSidebarLayout>{children}</AdminSidebarLayout>
 }

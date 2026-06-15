@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import PronosticoForm from './PronosticoForm'
-import DateNav from '../components/DateNav'
+import DateNav from '@/app/components/DateNav'
 import { redirect } from 'next/navigation'
 
 // Panama = UTC-5, sin DST
@@ -70,8 +70,8 @@ export default async function PronosticosPage({
       {/* Banner de pago pendiente */}
       {profile?.pago_confirmado === false && (
         <div className="bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 text-sm text-yellow-800">
-          <span className="font-semibold">⏳ Tu pago aún no fue confirmado.</span>{' '}
-          Podés seguir haciendo pronósticos, pero confirmá tu pago con el admin para entrar al pozo.
+          <span className="font-semibold">🔒 Tu pago aún no fue confirmado.</span>{' '}
+          Los pronósticos están bloqueados hasta que el admin confirme tu pago.
         </div>
       )}
 
@@ -115,6 +115,7 @@ export default async function PronosticosPage({
           partido={partido}
           pronostico={pronosticosMap.get(partido.id)}
           userId={user.id}
+          pagoConfirmado={profile?.pago_confirmado ?? false}
         />
       ))}
     </div>

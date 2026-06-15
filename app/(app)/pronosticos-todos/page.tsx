@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Partido } from '@/lib/types'
-import DateNav from '../components/DateNav'
+import DateNav from '@/app/components/DateNav'
 
 type PronosticoFila = {
   partido_id: string

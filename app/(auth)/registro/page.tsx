@@ -56,6 +56,9 @@ export default function RegistroPage() {
         <p className="text-xs text-center text-gray-500">
           ¿Ya tienes cuenta? <Link href="/login" className="text-blue-600">Inicia sesión</Link>
         </p>
+        <p className="text-xs text-center text-gray-400 border-t pt-3">
+          El registro es libre. Para participar en los pronósticos, confirmá tu pago con el administrador después de crear tu cuenta.
+        </p>
       </div>
     </div>
   )

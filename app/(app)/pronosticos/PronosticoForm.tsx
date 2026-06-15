@@ -8,6 +8,7 @@ interface Props {
   partido: Partido
   pronostico?: Pronostico | null
   userId: string
+  pagoConfirmado: boolean
 }
 
 type EstadoPartido = 'proximo' | 'bloqueado' | 'en_vivo' | 'esperando_resultado' | 'finalizado'
@@ -30,7 +31,7 @@ const PUNTOS_CONFIG = {
   0: { wrapper: 'bg-red-50 border-red-200',       text: 'text-red-400',   label: 'No acertaste +0 pts' },
 } as const
 
-export default function PronosticoForm({ partido, pronostico, userId }: Props) {
+export default function PronosticoForm({ partido, pronostico, userId, pagoConfirmado }: Props) {
   const supabase = createClient()
   const [golesLocal, setGolesLocal] = useState<number>(pronostico?.goles_local ?? 0)
   const [golesVisitante, setGolesVisitante] = useState<number>(pronostico?.goles_visitante ?? 0)
@@ -38,7 +39,7 @@ export default function PronosticoForm({ partido, pronostico, userId }: Props) {
   const [mensaje, setMensaje] = useState<string | null>(null)
 
   const estado = calcularEstado(partido)
-  const editable = estado === 'proximo'
+  const editable = estado === 'proximo' && pagoConfirmado
 
   const handleSubmit = async () => {
     if (!editable) return
@@ -89,6 +90,28 @@ export default function PronosticoForm({ partido, pronostico, userId }: Props) {
         ) : (
           <p className="text-center text-sm text-gray-400 italic">No participaste en este partido</p>
         )}
+      </div>
+    )
+  }
+
+  // ── Sin pago confirmado (no finalizado) ─────────────────────────────────
+  if (!pagoConfirmado) {
+    return (
+      <div className="border rounded-xl p-4 shadow-sm bg-white">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-gray-500">{partido.fase}</span>
+          <span className="text-xs text-gray-400">{fechaStr}</span>
+        </div>
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <span className="font-bold text-lg w-32 text-right">{partido.equipo_local}</span>
+          <span className="text-gray-400 font-semibold">vs</span>
+          <span className="font-bold text-lg w-32">{partido.equipo_visitante}</span>
+        </div>
+        <div className="flex justify-center">
+          <span className="text-sm text-yellow-800 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
+            🔒 Confirma tu pago para participar y hacer pronósticos
+          </span>
+        </div>
       </div>
     )
   }

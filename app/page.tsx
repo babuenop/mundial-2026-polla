@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 function formatearFechaPanama(iso: string): string {
   return new Date(iso).toLocaleString('es-ES', {
@@ -14,6 +15,10 @@ function formatearFechaPanama(iso: string): string {
 
 export default async function HomePage() {
   const supabase = await createClient()
+
+  // Redirigir usuarios ya autenticados directamente a sus pronósticos
+  const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }))
+  if (user) redirect('/pronosticos')
 
   const now        = new Date()
   const nowISO     = now.toISOString()
@@ -47,7 +52,27 @@ export default async function HomePage() {
   const proximo = proximoData?.[0] ?? null
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
+    <div className="min-h-screen flex flex-col">
+    {/* Header público */}
+    <header className="bg-gray-950 text-white px-6 py-3 flex items-center justify-between">
+      <span className="font-bold tracking-tight">Mundial 2026</span>
+      <div className="flex items-center gap-4 text-sm">
+        <Link href="/reglas" className="text-gray-300 hover:text-white transition-colors">
+          Reglas
+        </Link>
+        <Link href="/login" className="text-gray-300 hover:text-white transition-colors">
+          Iniciar sesión
+        </Link>
+        <Link
+          href="/registro"
+          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md font-medium transition-colors"
+        >
+          Registrarse
+        </Link>
+      </div>
+    </header>
+
+    <div className="max-w-3xl mx-auto px-4 py-12 space-y-10 w-full">
 
       {/* Header */}
       <div className="text-center space-y-2">
@@ -126,6 +151,11 @@ export default async function HomePage() {
         </Link>
       </div>
 
+      <p className="text-center text-sm text-gray-400">
+        El registro es libre, pero para participar en los pronósticos debés confirmar tu pago con el administrador.
+      </p>
+
+    </div>
     </div>
   )
 }
