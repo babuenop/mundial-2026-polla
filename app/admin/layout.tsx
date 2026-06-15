@@ -30,6 +30,9 @@ export default async function AdminLayout({
         <Link href="/admin/resultados" className="hover:underline">
           Resultados
         </Link>
+        <Link href="/admin/jugadores" className="hover:underline">
+          Jugadores
+        </Link>
       </nav>
       <main className="max-w-4xl mx-auto p-6">{children}</main>
     </div>

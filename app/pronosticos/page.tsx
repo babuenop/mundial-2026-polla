@@ -54,7 +54,7 @@ export default async function PronosticosPage({
     supabase.from('partidos').select('id').eq('finalizado', true),
     // Todos los pronósticos del usuario (para mapa y estadísticas globales)
     supabase.from('pronosticos').select('*').eq('user_id', user.id),
-    supabase.from('profiles').select('puntaje_total').eq('id', user.id).single(),
+    supabase.from('profiles').select('puntaje_total, pago_confirmado').eq('id', user.id).single(),
   ])
 
   const pronosticosMap = new Map(pronosticos?.map((p) => [p.partido_id, p]))
@@ -66,6 +66,14 @@ export default async function PronosticosPage({
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">Mis Pronósticos</h1>
+
+      {/* Banner de pago pendiente */}
+      {profile?.pago_confirmado === false && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-xl px-4 py-3 text-sm text-yellow-800">
+          <span className="font-semibold">⏳ Tu pago aún no fue confirmado.</span>{' '}
+          Podés seguir haciendo pronósticos, pero confirmá tu pago con el admin para entrar al pozo.
+        </div>
+      )}
 
       {/* Resumen global de puntos */}
       {totalFinalizados > 0 && (
