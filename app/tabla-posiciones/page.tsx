@@ -24,43 +24,48 @@ export default async function TablaPosicionesPage() {
       .eq('puntos_obtenidos', 3),
   ])
 
+  // Pronósticos realizados por usuario
   const conteo = new Map<string, number>()
   for (const p of pronosticos ?? []) {
     conteo.set(p.user_id, (conteo.get(p.user_id) ?? 0) + 1)
   }
 
-  const ultimoExacto = new Map<string, string>()
+  // Marcadores exactos por usuario + fecha del último (ambos del mismo dataset)
+  const conteoExactos = new Map<string, number>()
+  const ultimoExacto  = new Map<string, string>()
   for (const e of (exactosRaw as ExactoRow[] | null) ?? []) {
+    conteoExactos.set(e.user_id, (conteoExactos.get(e.user_id) ?? 0) + 1)
     const fecha = e.partidos?.fecha_partido
-    if (!fecha) continue
-    const prev = ultimoExacto.get(e.user_id)
-    if (!prev || fecha > prev) ultimoExacto.set(e.user_id, fecha)
+    if (fecha) {
+      const prev = ultimoExacto.get(e.user_id)
+      if (!prev || fecha > prev) ultimoExacto.set(e.user_id, fecha)
+    }
   }
 
   const ranking = (profiles ?? [])
     .map(p => ({
       ...p,
       pronosticos:  conteo.get(p.id) ?? 0,
+      exactos:      conteoExactos.get(p.id) ?? 0,
       ultimoExacto: ultimoExacto.get(p.id) ?? null,
     }))
     .sort((a, b) => {
-      if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total
-      if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos
-      if (a.ultimoExacto === null && b.ultimoExacto === null) return 0
+      if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total  // 1. pts DESC
+      if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos    // 2. pronósticos ASC
+      if (b.exactos       !== a.exactos)       return b.exactos       - a.exactos        // 3. exactos DESC
+      if (a.ultimoExacto === null && b.ultimoExacto === null) return 0                   // 4. último exacto DESC
       if (a.ultimoExacto === null) return 1
       if (b.ultimoExacto === null) return -1
       return b.ultimoExacto.localeCompare(a.ultimoExacto)
     })
 
   // KPIs
-  const activos   = (profiles ?? []).filter(p => p.pago_confirmado)
-  const nActivos  = activos.length
-  const promedio  = nActivos > 0
+  const activos  = (profiles ?? []).filter(p => p.pago_confirmado)
+  const nActivos = activos.length
+  const promedio = nActivos > 0
     ? (activos.reduce((s, p) => s + p.puntaje_total, 0) / nActivos).toFixed(1)
     : '—'
-  const maximo    = nActivos > 0
-    ? Math.max(...activos.map(p => p.puntaje_total))
-    : 0
+  const maximo = nActivos > 0 ? Math.max(...activos.map(p => p.puntaje_total)) : 0
 
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
@@ -99,6 +104,7 @@ export default async function TablaPosicionesPage() {
             <th className="text-left p-2">Nombre</th>
             <th className="text-center p-2">Estado</th>
             <th className="text-right p-2">Pronósticos</th>
+            <th className="text-right p-2">🎯</th>
             <th className="text-right p-2">Puntos</th>
           </tr>
         </thead>
@@ -120,6 +126,7 @@ export default async function TablaPosicionesPage() {
                 )}
               </td>
               <td className="p-2 text-right text-gray-500">{r.pronosticos}</td>
+              <td className="p-2 text-right text-green-700 font-medium">{r.exactos}</td>
               <td className="p-2 text-right">{r.puntaje_total}</td>
             </tr>
           ))}
