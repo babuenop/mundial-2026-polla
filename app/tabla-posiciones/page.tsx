@@ -8,11 +8,19 @@ type ExactoRow = {
 export default async function TablaPosicionesPage() {
   const supabase = await createClient()
 
-  const [{ data: profiles }, { data: pronosticos }, { data: exactosRaw }] = await Promise.all([
+  const [
+    { data: profiles },
+    { data: pronosticos },
+    { data: exactosRaw },
+    { count: totalExactos },
+  ] = await Promise.all([
     supabase.from('profiles').select('id, apodo, nombre, puntaje_total, pago_confirmado'),
     supabase.from('pronosticos').select('user_id'),
     supabase.from('pronosticos')
       .select('user_id, partidos(fecha_partido)')
+      .eq('puntos_obtenidos', 3),
+    supabase.from('pronosticos')
+      .select('*', { count: 'exact', head: true })
       .eq('puntos_obtenidos', 3),
   ])
 
@@ -44,9 +52,45 @@ export default async function TablaPosicionesPage() {
       return b.ultimoExacto.localeCompare(a.ultimoExacto)
     })
 
+  // KPIs
+  const activos   = (profiles ?? []).filter(p => p.pago_confirmado)
+  const nActivos  = activos.length
+  const promedio  = nActivos > 0
+    ? (activos.reduce((s, p) => s + p.puntaje_total, 0) / nActivos).toFixed(1)
+    : '—'
+  const maximo    = nActivos > 0
+    ? Math.max(...activos.map(p => p.puntaje_total))
+    : 0
+
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">🏆 Tabla de Posiciones</h1>
+    <div className="max-w-2xl mx-auto p-4 space-y-6">
+      <h1 className="text-2xl font-bold">🏆 Tabla de Posiciones</h1>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white border rounded-2xl shadow-sm p-4 flex flex-col items-center gap-1 text-center">
+          <span className="text-3xl">👥</span>
+          <p className="text-3xl font-bold text-gray-900">{nActivos}</p>
+          <p className="text-xs text-gray-500 font-medium">jugadores activos</p>
+        </div>
+        <div className="bg-white border rounded-2xl shadow-sm p-4 flex flex-col items-center gap-1 text-center">
+          <span className="text-3xl">📊</span>
+          <p className="text-3xl font-bold text-gray-900">{promedio}</p>
+          <p className="text-xs text-gray-500 font-medium">promedio de puntos</p>
+        </div>
+        <div className="bg-white border rounded-2xl shadow-sm p-4 flex flex-col items-center gap-1 text-center">
+          <span className="text-3xl">🏆</span>
+          <p className="text-3xl font-bold text-gray-900">{maximo}</p>
+          <p className="text-xs text-gray-500 font-medium">puntaje máximo</p>
+        </div>
+        <div className="bg-white border rounded-2xl shadow-sm p-4 flex flex-col items-center gap-1 text-center">
+          <span className="text-3xl">🎯</span>
+          <p className="text-3xl font-bold text-gray-900">{totalExactos ?? 0}</p>
+          <p className="text-xs text-gray-500 font-medium">marcadores exactos</p>
+        </div>
+      </div>
+
+      {/* Ranking table */}
       <table className="w-full border rounded-lg overflow-hidden text-sm">
         <thead className="bg-gray-100">
           <tr>
