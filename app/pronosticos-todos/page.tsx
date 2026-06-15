@@ -1,0 +1,191 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { Partido } from '@/lib/types'
+import DateNav from '../components/DateNav'
+
+type PronosticoFila = {
+  partido_id: string
+  goles_local: number
+  goles_visitante: number
+  puntos_obtenidos: number
+  profiles: { apodo: string } | null
+}
+
+type EstadoPartido = 'en_vivo' | 'esperando_resultado' | 'finalizado'
+
+function estadoPartido(p: Partido): EstadoPartido {
+  if (p.finalizado) return 'finalizado'
+  const now = Date.now()
+  const kickoff = new Date(p.fecha_partido).getTime()
+  return now < kickoff + 2.5 * 60 * 60 * 1000 ? 'en_vivo' : 'esperando_resultado'
+}
+
+// Panama = UTC-5 (sin DST)
+const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000
+
+function getTodayPanama(): string {
+  return new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10)
+}
+
+// "2026-06-20" (hora Panama) → rango UTC que cubre ese día completo en Panama
+function getDayRangeUTC(dateStr: string): { start: string; end: string } {
+  const start = new Date(`${dateStr}T00:00:00-05:00`)
+  const end   = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+function formatearFecha(dateStr: string): string {
+  return new Date(`${dateStr}T12:00:00Z`).toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+export default async function PronosticosTodosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { fecha: fechaParam } = await searchParams
+  const hoy = getTodayPanama()
+  const fecha = typeof fechaParam === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam)
+    ? fechaParam
+    : hoy
+
+  const { start, end } = getDayRangeUTC(fecha)
+  const now = new Date().toISOString()
+
+  // Partidos del día seleccionado que ya comenzaron
+  const { data: partidos } = await supabase
+    .from('partidos')
+    .select('*')
+    .gte('fecha_partido', start)
+    .lt('fecha_partido', end)
+    .lte('fecha_partido', now)
+    .order('fecha_partido', { ascending: true })
+
+  const partidoIds = (partidos as Partido[] | null)?.map((p) => p.id) ?? []
+
+  let pronosticos: PronosticoFila[] = []
+  if (partidoIds.length > 0) {
+    const { data } = await supabase
+      .from('pronosticos')
+      .select('partido_id, goles_local, goles_visitante, puntos_obtenidos, profiles(apodo)')
+      .in('partido_id', partidoIds)
+    pronosticos = (data as PronosticoFila[] | null) ?? []
+  }
+
+  const porPartido = new Map<string, PronosticoFila[]>()
+  for (const p of pronosticos) {
+    const list = porPartido.get(p.partido_id) ?? []
+    list.push(p)
+    porPartido.set(p.partido_id, list)
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 space-y-5">
+      <h1 className="text-2xl font-bold">Pronósticos de la comunidad</h1>
+
+      {/* Navegación de fecha */}
+      <div className="space-y-1">
+        <DateNav fechaActual={fecha} hoy={hoy} basePath="/pronosticos-todos" />
+        <p className="text-sm text-gray-500 capitalize">{formatearFecha(fecha)}</p>
+      </div>
+
+      {/* Sin partidos para la fecha */}
+      {(!partidos || partidos.length === 0) && (
+        <div className="border rounded-xl p-6 bg-white text-center space-y-1">
+          <p className="text-gray-600 font-medium">No hay partidos en vivo o finalizados para esta fecha.</p>
+          <p className="text-sm text-gray-400">Usá los botones de arriba para navegar a otra fecha.</p>
+        </div>
+      )}
+
+      {/* Lista de partidos */}
+      {(partidos as Partido[] | null)?.map((partido) => {
+        const estado = estadoPartido(partido)
+        const filas = (porPartido.get(partido.id) ?? []).sort((a, b) =>
+          estado === 'finalizado'
+            ? b.puntos_obtenidos - a.puntos_obtenidos
+            : (a.profiles?.apodo ?? '').localeCompare(b.profiles?.apodo ?? '')
+        )
+
+        return (
+          <div key={partido.id} className="border rounded-xl shadow-sm bg-white overflow-hidden">
+            <div className={`px-4 py-3 flex items-center justify-between border-b ${estado === 'en_vivo' ? 'bg-red-50' : 'bg-gray-50'}`}>
+              <div>
+                <p className="text-xs font-semibold text-gray-500">{partido.fase}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="font-bold text-sm">
+                    {partido.equipo_local}{' '}
+                    <span className="font-normal text-gray-400">vs</span>{' '}
+                    {partido.equipo_visitante}
+                  </p>
+                  {estado === 'en_vivo' && (
+                    <span className="animate-pulse bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      🔴 EN VIVO
+                    </span>
+                  )}
+                  {estado === 'esperando_resultado' && (
+                    <span className="text-xs text-gray-400 font-medium">⏳ Esperando resultado</span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400">
+                  {new Date(partido.fecha_partido).toLocaleString('es-ES', { timeStyle: 'short' })}
+                </p>
+                {estado === 'finalizado' && (
+                  <p className="text-lg font-bold tabular-nums text-gray-800 mt-0.5">
+                    {partido.goles_local} – {partido.goles_visitante}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {filas.length === 0 ? (
+              <p className="text-sm text-gray-400 italic px-4 py-3">
+                Nadie hizo pronóstico para este partido.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-xs text-gray-400 border-b">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Jugador</th>
+                    <th className="text-center px-4 py-2 font-medium">Pronóstico</th>
+                    <th className="text-center px-4 py-2 font-medium">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filas.map((f, i) => (
+                    <tr key={i} className="border-t last:border-0 hover:bg-gray-50">
+                      <td className="px-4 py-2 font-medium text-gray-700">{f.profiles?.apodo ?? '—'}</td>
+                      <td className="px-4 py-2 text-center tabular-nums text-gray-600">
+                        {f.goles_local} – {f.goles_visitante}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {estado === 'finalizado' ? (
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            f.puntos_obtenidos === 3 ? 'bg-green-100 text-green-700' :
+                            f.puntos_obtenidos === 1 ? 'bg-yellow-100 text-yellow-700' :
+                                                       'bg-gray-100 text-gray-500'
+                          }`}>
+                            +{f.puntos_obtenidos}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Pendiente</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
