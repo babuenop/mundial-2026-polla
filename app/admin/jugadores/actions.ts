@@ -19,13 +19,29 @@ export async function deleteUser(userId: string): Promise<{ error: string | null
   if (callerProfile?.rol !== 'admin') return { error: 'No autorizado' }
   if (userId === user.id) return { error: 'No podés eliminarte a vos mismo' }
 
-  // Usar service role para eliminar de auth.users
+  // Usar service role (bypasa RLS) para limpiar datos públicos antes de
+  // borrar auth.users, evitando depender del cascade en el esquema auth
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // 1. Borrar pronósticos del usuario
+  const { error: errPron } = await adminClient
+    .from('pronosticos')
+    .delete()
+    .eq('user_id', userId)
+  if (errPron) return { error: errPron.message }
+
+  // 2. Borrar perfil
+  const { error: errProfile } = await adminClient
+    .from('profiles')
+    .delete()
+    .eq('id', userId)
+  if (errProfile) return { error: errProfile.message }
+
+  // 3. Borrar usuario de auth (sin datos públicos que bloqueen)
   const { error } = await adminClient.auth.admin.deleteUser(userId)
   if (error) return { error: error.message }
 

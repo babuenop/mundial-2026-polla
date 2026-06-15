@@ -4,20 +4,29 @@ import LogoutButton from './LogoutButton'
 
 export default async function Navbar() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
+  let user = null
   let apodo: string | null = null
   let isAdmin = false
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('apodo, rol')
-      .eq('id', user.id)
-      .single()
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
 
-    apodo = profile?.apodo ?? null
-    isAdmin = profile?.rol === 'admin'
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('apodo, rol')
+        .eq('id', user.id)
+        .single()
+
+      apodo = profile?.apodo ?? null
+      isAdmin = profile?.rol === 'admin'
+    }
+  } catch {
+    // Refresh token inválido o expirado — tratar como no autenticado.
+    // El middleware limpia las cookies; las páginas protegidas redirigen a /login.
+    user = null
   }
 
   return (
