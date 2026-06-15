@@ -36,6 +36,9 @@ export default async function Navbar() {
       </Link>
 
       <div className="flex items-center gap-5 text-sm">
+        <Link href="/reglas" className="hover:text-gray-300 transition-colors">
+          Reglas
+        </Link>
         {!user ? (
           <>
             <Link href="/login" className="hover:text-gray-300 transition-colors">
