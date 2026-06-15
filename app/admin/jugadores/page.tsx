@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import PagoToggle from './PagoToggle'
 import EliminarUsuario from './EliminarUsuario'
 
@@ -15,13 +16,28 @@ export default async function AdminJugadoresPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, apodo, nombre, puntaje_total, pago_confirmado, rol')
-    .order('apodo', { ascending: true })
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  const [{ data: profiles }, { data: authData }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, apodo, nombre, puntaje_total, pago_confirmado, rol')
+      .order('apodo', { ascending: true }),
+    adminClient.auth.admin.listUsers({ perPage: 1000 }),
+  ])
+
+  // Map email por id desde auth.users
+  const emailMap = new Map<string, string>()
+  for (const u of authData?.users ?? []) {
+    if (u.email) emailMap.set(u.id, u.email)
+  }
 
   const lista = (profiles as ProfileFila[] | null) ?? []
-  const pagados  = lista.filter(p => p.pago_confirmado).length
+  const pagados   = lista.filter(p => p.pago_confirmado).length
   const pendientes = lista.length - pagados
 
   return (
@@ -57,7 +73,11 @@ export default async function AdminJugadoresPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500">{p.nombre}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{p.puntaje_total} pts</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {emailMap.get(p.id) ?? <span className="italic">sin email</span>}
+                {' · '}
+                {p.puntaje_total} pts
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
