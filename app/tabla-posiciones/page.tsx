@@ -1,27 +1,50 @@
 import { createClient } from '@/lib/supabase/server'
 
+type ExactoRow = {
+  user_id: string
+  partidos: { fecha_partido: string } | null
+}
+
 export default async function TablaPosicionesPage() {
   const supabase = await createClient()
 
-  const [{ data: profiles }, { data: pronosticos }] = await Promise.all([
+  const [{ data: profiles }, { data: pronosticos }, { data: exactosRaw }] = await Promise.all([
     supabase.from('profiles').select('id, apodo, nombre, puntaje_total'),
     supabase.from('pronosticos').select('user_id'),
+    supabase.from('pronosticos')
+      .select('user_id, partidos(fecha_partido)')
+      .eq('puntos_obtenidos', 3),
   ])
 
-  // Count pronosticos per user
   const conteo = new Map<string, number>()
   for (const p of pronosticos ?? []) {
     conteo.set(p.user_id, (conteo.get(p.user_id) ?? 0) + 1)
   }
 
-  // Sort: puntaje_total desc, then pronosticos asc (más eficiente gana el desempate)
+  // Max fecha_partido entre pronósticos exactos (3 pts) por usuario
+  const ultimoExacto = new Map<string, string>()
+  for (const e of (exactosRaw as ExactoRow[] | null) ?? []) {
+    const fecha = e.partidos?.fecha_partido
+    if (!fecha) continue
+    const prev = ultimoExacto.get(e.user_id)
+    if (!prev || fecha > prev) ultimoExacto.set(e.user_id, fecha)
+  }
+
   const ranking = (profiles ?? [])
-    .map(p => ({ ...p, pronosticos: conteo.get(p.id) ?? 0 }))
-    .sort((a, b) =>
-      b.puntaje_total !== a.puntaje_total
-        ? b.puntaje_total - a.puntaje_total
-        : a.pronosticos - b.pronosticos
-    )
+    .map(p => ({
+      ...p,
+      pronosticos:  conteo.get(p.id) ?? 0,
+      ultimoExacto: ultimoExacto.get(p.id) ?? null,
+    }))
+    .sort((a, b) => {
+      if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total
+      if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos
+      // Tercer desempate: último marcador exacto más reciente gana; sin exacto = peor posición
+      if (a.ultimoExacto === null && b.ultimoExacto === null) return 0
+      if (a.ultimoExacto === null) return 1
+      if (b.ultimoExacto === null) return -1
+      return b.ultimoExacto.localeCompare(a.ultimoExacto)
+    })
 
   return (
     <div className="max-w-xl mx-auto p-4">

@@ -53,6 +53,9 @@ export default async function Navbar() {
             <Link href="/pronosticos-todos" className="hover:text-gray-300 transition-colors">
               Comunidad
             </Link>
+            <Link href="/perfil" className="hover:text-gray-300 transition-colors">
+              Perfil
+            </Link>
 
             {/* Admin link: only rendered server-side when rol='admin' — never in HTML for other users */}
             {isAdmin && (

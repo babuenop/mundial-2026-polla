@@ -20,14 +20,12 @@ function estadoPartido(p: Partido): EstadoPartido {
   return now < kickoff + 2.5 * 60 * 60 * 1000 ? 'en_vivo' : 'esperando_resultado'
 }
 
-// Panama = UTC-5 (sin DST)
 const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000
 
 function getTodayPanama(): string {
   return new Date(Date.now() - PANAMA_OFFSET_MS).toISOString().slice(0, 10)
 }
 
-// "2026-06-20" (hora Panama) → rango UTC que cubre ese día completo en Panama
 function getDayRangeUTC(dateStr: string): { start: string; end: string } {
   const start = new Date(`${dateStr}T00:00:00-05:00`)
   const end   = new Date(start.getTime() + 24 * 60 * 60 * 1000)
@@ -58,7 +56,6 @@ export default async function PronosticosTodosPage({
   const { start, end } = getDayRangeUTC(fecha)
   const now = new Date().toISOString()
 
-  // Partidos del día seleccionado que ya comenzaron
   const { data: partidos } = await supabase
     .from('partidos')
     .select('*')
@@ -89,13 +86,11 @@ export default async function PronosticosTodosPage({
     <div className="max-w-2xl mx-auto p-4 space-y-5">
       <h1 className="text-2xl font-bold">Pronósticos de la comunidad</h1>
 
-      {/* Navegación de fecha */}
       <div className="space-y-1">
         <DateNav fechaActual={fecha} hoy={hoy} basePath="/pronosticos-todos" />
         <p className="text-sm text-gray-500 capitalize">{formatearFecha(fecha)}</p>
       </div>
 
-      {/* Sin partidos para la fecha */}
       {(!partidos || partidos.length === 0) && (
         <div className="border rounded-xl p-6 bg-white text-center space-y-1">
           <p className="text-gray-600 font-medium">No hay partidos en vivo o finalizados para esta fecha.</p>
@@ -103,7 +98,6 @@ export default async function PronosticosTodosPage({
         </div>
       )}
 
-      {/* Lista de partidos */}
       {(partidos as Partido[] | null)?.map((partido) => {
         const estado = estadoPartido(partido)
         const filas = (porPartido.get(partido.id) ?? []).sort((a, b) =>
@@ -112,8 +106,13 @@ export default async function PronosticosTodosPage({
             : (a.profiles?.apodo ?? '').localeCompare(b.profiles?.apodo ?? '')
         )
 
+        const nExactos   = filas.filter(f => f.puntos_obtenidos === 3).length
+        const nResultado = filas.filter(f => f.puntos_obtenidos === 1).length
+        const nFallaron  = filas.filter(f => f.puntos_obtenidos === 0).length
+
         return (
           <div key={partido.id} className="border rounded-xl shadow-sm bg-white overflow-hidden">
+            {/* Cabecera del partido */}
             <div className={`px-4 py-3 flex items-center justify-between border-b ${estado === 'en_vivo' ? 'bg-red-50' : 'bg-gray-50'}`}>
               <div>
                 <p className="text-xs font-semibold text-gray-500">{partido.fase}</p>
@@ -145,6 +144,15 @@ export default async function PronosticosTodosPage({
               </div>
             </div>
 
+            {/* Resumen de aciertos (solo partidos finalizados con pronósticos) */}
+            {estado === 'finalizado' && filas.length > 0 && (
+              <div className="px-4 py-2 border-b bg-white flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span className="font-medium text-green-700">✅ Exacto: {nExactos}</span>
+                <span className="font-medium text-yellow-700">🟡 Resultado: {nResultado}</span>
+                <span className="font-medium text-gray-500">❌ Fallaron: {nFallaron}</span>
+              </div>
+            )}
+
             {filas.length === 0 ? (
               <p className="text-sm text-gray-400 italic px-4 py-3">
                 Nadie hizo pronóstico para este partido.
@@ -167,11 +175,12 @@ export default async function PronosticosTodosPage({
                       </td>
                       <td className="px-4 py-2 text-center">
                         {estado === 'finalizado' ? (
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
                             f.puntos_obtenidos === 3 ? 'bg-green-100 text-green-700' :
                             f.puntos_obtenidos === 1 ? 'bg-yellow-100 text-yellow-700' :
                                                        'bg-gray-100 text-gray-500'
                           }`}>
+                            {f.puntos_obtenidos === 3 ? '✅' : f.puntos_obtenidos === 1 ? '🟡' : '❌'}
                             +{f.puntos_obtenidos}
                           </span>
                         ) : (
