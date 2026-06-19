@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { calcularLogros, type PronosticoConPartido, type LogroEstado } from '@/lib/logros'
+import Bandera from '@/app/components/Bandera'
 
 const LOGROS_META = [
   {
@@ -60,7 +61,7 @@ export default async function PerfilPage() {
   const [{ data: profile }, { data: pronosticosRaw }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('nombre, apodo, puntaje_total')
+      .select('nombre, apodo, puntaje_total, nacionalidad')
       .eq('id', user.id)
       .single(),
     supabase
@@ -87,7 +88,10 @@ export default async function PerfilPage() {
 
       {/* Datos del usuario */}
       <div className="bg-white border rounded-xl p-5">
-        <p className="text-2xl font-bold">{profile?.apodo}</p>
+        <div className="flex items-center gap-2">
+          {profile?.nacionalidad && <Bandera equipo={profile.nacionalidad} />}
+          <p className="text-2xl font-bold">{profile?.apodo}</p>
+        </div>
         <p className="text-sm text-gray-500 mt-0.5">{profile?.nombre}</p>
         <div className="mt-3 flex items-baseline gap-1.5">
           <span className="text-4xl font-bold text-gray-900">{profile?.puntaje_total ?? 0}</span>

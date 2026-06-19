@@ -16,7 +16,7 @@ export default async function TablaPosicionesPage() {
     { data: statsRaw },
     { count: totalExactos },
   ] = await Promise.all([
-    supabase.from('profiles').select('id, apodo, nombre, puntaje_total, pago_confirmado, nacionalidad'),
+    supabase.from('profiles').select('id, apodo, puntaje_total, pago_confirmado, nacionalidad'),
     supabase.rpc('get_ranking_stats'),
     supabase.from('pronosticos')
       .select('*', { count: 'exact', head: true })
@@ -89,8 +89,8 @@ export default async function TablaPosicionesPage() {
         <thead className="bg-gray-100">
           <tr>
             <th className="text-left p-2">#</th>
+            <th className="w-10 p-2"></th>
             <th className="text-left p-2">Apodo</th>
-            <th className="text-left p-2">Nombre</th>
             <th className="text-center p-2">Estado</th>
             <th className="text-right p-2">Pronósticos</th>
             <th className="text-right p-2">🎯</th>
@@ -101,13 +101,10 @@ export default async function TablaPosicionesPage() {
           {ranking.map((r, i) => (
             <tr key={r.id} className={`border-t ${i < 3 ? 'font-semibold bg-yellow-50' : ''}`}>
               <td className="p-2">{i + 1}</td>
-              <td className="p-2">
-                <span className="inline-flex items-center gap-1.5">
-                  {r.nacionalidad && <Bandera equipo={r.nacionalidad} />}
-                  {r.apodo}
-                </span>
+              <td className="w-10 p-2 text-center">
+                {r.nacionalidad && <Bandera equipo={r.nacionalidad} />}
               </td>
-              <td className="p-2 text-gray-500">{r.nombre}</td>
+              <td className="p-2">{r.apodo}</td>
               <td className="p-2 text-center">
                 {r.pago_confirmado ? (
                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">

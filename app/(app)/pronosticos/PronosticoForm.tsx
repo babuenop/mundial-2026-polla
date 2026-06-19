@@ -126,7 +126,7 @@ export default function PronosticoForm({ partido, pronostico, userId, pagoConfir
       </div>
 
       <div className="flex items-center justify-center gap-4 mb-3">
-        <span className="font-bold text-lg w-32 text-right">{partido.equipo_local}</span>
+        <span className="font-bold text-lg w-32 text-right"><Bandera equipo={partido.equipo_local} /> {partido.equipo_local}</span>
         <input
           type="number" min={0} max={20} value={golesLocal} disabled={!editable}
           onChange={(e) => setGolesLocal(Number(e.target.value))}
@@ -138,7 +138,7 @@ export default function PronosticoForm({ partido, pronostico, userId, pagoConfir
           onChange={(e) => setGolesVisitante(Number(e.target.value))}
           className="w-14 text-center border rounded-md py-1 disabled:bg-gray-100"
         />
-        <span className="font-bold text-lg w-32">{partido.equipo_visitante}</span>
+        <span className="font-bold text-lg w-32"><Bandera equipo={partido.equipo_visitante} /> {partido.equipo_visitante}</span>
       </div>
 
       <div className="flex justify-center">
