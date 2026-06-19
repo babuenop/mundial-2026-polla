@@ -6,6 +6,7 @@ interface Props {
   fechaActual: string // "YYYY-MM-DD" en hora Panama
   hoy: string        // "YYYY-MM-DD" de hoy según el servidor
   basePath: string   // ruta base, e.g. "/pronosticos" o "/pronosticos-todos"
+  extraParams?: Record<string, string> // params adicionales a preservar en la URL (e.g. { fase: 'Fase de Grupos' })
 }
 
 function desplazar(fecha: string, dias: number): string {
@@ -14,9 +15,12 @@ function desplazar(fecha: string, dias: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-export default function DateNav({ fechaActual, hoy, basePath }: Props) {
+export default function DateNav({ fechaActual, hoy, basePath, extraParams }: Props) {
   const router = useRouter()
-  const nav = (f: string) => router.push(`${basePath}?fecha=${f}`)
+  const nav = (f: string) => {
+    const params = new URLSearchParams({ ...extraParams, fecha: f })
+    router.push(`${basePath}?${params.toString()}`)
+  }
 
   return (
     <div className="flex items-center gap-2 flex-wrap">

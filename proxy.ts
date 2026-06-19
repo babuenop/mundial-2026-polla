@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,7 +26,6 @@ export async function middleware(request: NextRequest) {
   // Refresca la sesión si el token está por vencer.
   // getUser() verifica con el servidor; si falla, simplemente no hay sesión
   // (las páginas protegidas redirigen a /login por su cuenta).
-  // No lanzamos ni borramos cookies aquí — el Navbar ya maneja el AuthApiError.
   await supabase.auth.getUser().catch(() => null)
 
   return supabaseResponse
