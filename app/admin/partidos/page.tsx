@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Partido } from '@/lib/types'
 import PartidoForm from './PartidoForm'
+import Bandera from '@/app/components/Bandera'
 
 export default async function AdminPartidosPage() {
   const supabase = await createClient()
@@ -26,7 +27,7 @@ export default async function AdminPartidosPage() {
             {(partidos as Partido[]).map((p) => (
               <div key={p.id} className="border rounded-xl px-4 py-3 bg-white shadow-sm text-sm flex items-center justify-between">
                 <div>
-                  <span className="font-medium">{p.equipo_local} vs {p.equipo_visitante}</span>
+                  <span className="font-medium"><Bandera equipo={p.equipo_local} /> {p.equipo_local} vs <Bandera equipo={p.equipo_visitante} /> {p.equipo_visitante}</span>
                   <span className="text-gray-400 ml-3 text-xs">{p.fase}</span>
                 </div>
                 <span className="text-gray-500 text-xs">

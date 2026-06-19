@@ -49,6 +49,31 @@ export async function deleteUser(userId: string): Promise<{ error: string | null
   return { error: null }
 }
 
+export async function actualizarNacionalidad(userId: string, nacionalidad: string): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  if (callerProfile?.rol !== 'admin') return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ nacionalidad: nacionalidad || null })
+    .eq('id', userId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/jugadores')
+  revalidatePath('/tabla-posiciones')
+  return { error: null }
+}
+
 export async function togglePago(userId: string, pago: boolean): Promise<{ error: string | null }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

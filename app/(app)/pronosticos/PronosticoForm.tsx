@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Partido, Pronostico } from '@/lib/types'
+import Bandera from '@/app/components/Bandera'
 
 interface Props {
   partido: Partido
@@ -68,12 +69,12 @@ export default function PronosticoForm({ partido, pronostico, userId, pagoConfir
           <span className="text-xs text-gray-400">{fechaStr}</span>
         </div>
         <div className="flex items-center justify-center gap-4 mb-3">
-          <span className="font-bold text-base w-28 text-right">{partido.equipo_local}</span>
+          <span className="font-bold text-base w-28 text-right"><Bandera equipo={partido.equipo_local} /> {partido.equipo_local}</span>
           <div className="text-center">
             <div className="text-2xl font-bold tabular-nums">{partido.goles_local} – {partido.goles_visitante}</div>
             <div className="text-xs text-gray-400 mt-0.5">resultado oficial</div>
           </div>
-          <span className="font-bold text-base w-28">{partido.equipo_visitante}</span>
+          <span className="font-bold text-base w-28"><Bandera equipo={partido.equipo_visitante} /> {partido.equipo_visitante}</span>
         </div>
         {pronostico ? (
           <div className="space-y-2">
@@ -103,9 +104,9 @@ export default function PronosticoForm({ partido, pronostico, userId, pagoConfir
           <span className="text-xs text-gray-400">{fechaStr}</span>
         </div>
         <div className="flex items-center justify-center gap-3 mb-3">
-          <span className="font-bold text-lg w-32 text-right">{partido.equipo_local}</span>
+          <span className="font-bold text-lg w-32 text-right"><Bandera equipo={partido.equipo_local} /> {partido.equipo_local}</span>
           <span className="text-gray-400 font-semibold">vs</span>
-          <span className="font-bold text-lg w-32">{partido.equipo_visitante}</span>
+          <span className="font-bold text-lg w-32"><Bandera equipo={partido.equipo_visitante} /> {partido.equipo_visitante}</span>
         </div>
         <div className="flex justify-center">
           <span className="text-sm text-yellow-800 font-medium bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">

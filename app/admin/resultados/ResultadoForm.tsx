@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Partido } from '@/lib/types'
+import Bandera from '@/app/components/Bandera'
 
 interface Props {
   partido: Partido
@@ -45,7 +46,7 @@ export default function ResultadoForm({ partido }: Props) {
     <div className={`border rounded-xl px-4 py-3 shadow-sm bg-white text-sm ${partido.finalizado ? 'border-green-300 bg-green-50' : ''}`}>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <span className="font-medium">{partido.equipo_local} vs {partido.equipo_visitante}</span>
+          <span className="font-medium"><Bandera equipo={partido.equipo_local} /> {partido.equipo_local} vs <Bandera equipo={partido.equipo_visitante} /> {partido.equipo_visitante}</span>
           <span className="text-gray-400 ml-2 text-xs">{partido.fase}</span>
           <span className="text-gray-400 ml-2 text-xs">
             {new Date(partido.fecha_partido).toLocaleString('es-ES', {

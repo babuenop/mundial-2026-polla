@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import Bandera from '@/app/components/Bandera'
 
 function formatearFechaPanama(iso: string): string {
   return new Date(iso).toLocaleString('es-ES', {
@@ -109,11 +110,11 @@ export default async function HomePage() {
               🔴 EN VIVO
             </span>
             <p className="font-bold text-gray-900 text-base mt-1">
-              {enVivo.equipo_local}
+              <Bandera equipo={enVivo.equipo_local} /> {enVivo.equipo_local}
             </p>
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">vs</p>
             <p className="font-bold text-gray-900 text-base">
-              {enVivo.equipo_visitante}
+              <Bandera equipo={enVivo.equipo_visitante} /> {enVivo.equipo_visitante}
             </p>
           </div>
         ) : proximo ? (
@@ -121,7 +122,7 @@ export default async function HomePage() {
             <span className="text-4xl">⏭️</span>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Próximo partido</p>
             <p className="font-bold text-gray-900 text-sm">
-              {proximo.equipo_local} <span className="font-normal text-gray-400">vs</span> {proximo.equipo_visitante}
+              <Bandera equipo={proximo.equipo_local} /> {proximo.equipo_local} <span className="font-normal text-gray-400">vs</span> <Bandera equipo={proximo.equipo_visitante} /> {proximo.equipo_visitante}
             </p>
             <p className="text-xs text-gray-500 capitalize">
               {formatearFechaPanama(proximo.fecha_partido)}

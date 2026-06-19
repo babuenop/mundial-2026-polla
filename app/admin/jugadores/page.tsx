@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import PagoToggle from './PagoToggle'
 import EliminarUsuario from './EliminarUsuario'
+import NacionalidadEditor from './NacionalidadEditor'
 
 type ProfileFila = {
   id: string
@@ -10,6 +11,7 @@ type ProfileFila = {
   puntaje_total: number
   pago_confirmado: boolean
   rol: string
+  nacionalidad: string | null
 }
 
 export default async function AdminJugadoresPage() {
@@ -25,7 +27,7 @@ export default async function AdminJugadoresPage() {
   const [{ data: profiles }, { data: authData }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, apodo, nombre, puntaje_total, pago_confirmado, rol')
+      .select('id, apodo, nombre, puntaje_total, pago_confirmado, rol, nacionalidad')
       .order('apodo', { ascending: true }),
     adminClient.auth.admin.listUsers({ perPage: 1000 }),
   ])
@@ -63,7 +65,7 @@ export default async function AdminJugadoresPage() {
               p.pago_confirmado ? '' : 'border-red-100'
             }`}
           >
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="font-medium truncate">{p.apodo}</p>
                 {p.rol === 'admin' && (
@@ -78,6 +80,7 @@ export default async function AdminJugadoresPage() {
                 {' · '}
                 {p.puntaje_total} pts
               </p>
+              <NacionalidadEditor userId={p.id} nacionalidad={p.nacionalidad} />
             </div>
 
             <div className="flex items-center gap-3">

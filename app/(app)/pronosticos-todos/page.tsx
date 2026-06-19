@@ -2,6 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Partido } from '@/lib/types'
 import DateNav from '@/app/components/DateNav'
+import FaseFilter from '@/app/components/FaseFilter'
+import {
+  normalizarFase, esFaseGrupos, parseFaseParam,
+  FASES_ORDEN, type FaseCategoria,
+} from '@/lib/fases'
+import Bandera from '@/app/components/Bandera'
 
 type PronosticoFila = {
   partido_id: string
@@ -47,25 +53,52 @@ export default async function PronosticosTodosPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { fecha: fechaParam } = await searchParams
+  const params = await searchParams
   const hoy = getTodayPanama()
-  const fecha = typeof fechaParam === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam)
-    ? fechaParam
-    : hoy
-
-  const { start, end } = getDayRangeUTC(fecha)
   const now = new Date().toISOString()
 
-  const { data: partidos } = await supabase
-    .from('partidos')
-    .select('*')
-    .gte('fecha_partido', start)
-    .lt('fecha_partido', end)
-    .lte('fecha_partido', now)
-    .order('fecha_partido', { ascending: true })
+  // Determine fase & fecha from params
+  const faseParam = parseFaseParam(typeof params.fase === 'string' ? params.fase : undefined)
+  const faseReq: FaseCategoria = faseParam ?? 'Fase de Grupos'
+  const isGruposReq = esFaseGrupos(faseReq)
 
-  const partidoIds = (partidos as Partido[] | null)?.map((p) => p.id) ?? []
+  const fechaParam = typeof params.fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(params.fecha)
+    ? params.fecha : hoy
+  const fecha = isGruposReq ? fechaParam : hoy
+  const { start, end } = getDayRangeUTC(fecha)
 
+  // All queries in parallel
+  const [
+    { data: fasesRaw },
+    { data: partidos },
+  ] = await Promise.all([
+    supabase.from('partidos').select('fase'),
+
+    // Partidos ya comenzados: filtrados por fecha (grupos) o por fase completa (eliminación)
+    isGruposReq
+      ? supabase.from('partidos').select('*')
+          .gte('fecha_partido', start)
+          .lt('fecha_partido', end)
+          .lte('fecha_partido', now)
+          .order('fecha_partido', { ascending: true })
+      : supabase.from('partidos').select('*')
+          .eq('fase', faseReq)
+          .lte('fecha_partido', now)
+          .order('fecha_partido', { ascending: true }),
+  ])
+
+  // Build fase tabs
+  const categoriasSet = new Set<FaseCategoria>()
+  for (const r of fasesRaw ?? []) categoriasSet.add(normalizarFase(r.fase))
+  const fasesDisponibles = FASES_ORDEN.filter(f => categoriasSet.has(f))
+
+  const faseActiva: FaseCategoria = fasesDisponibles.includes(faseReq)
+    ? faseReq
+    : (fasesDisponibles[0] ?? 'Fase de Grupos')
+  const isGrupos = esFaseGrupos(faseActiva)
+
+  // Fetch pronosticos for the visible partidos
+  const partidoIds = (partidos as Partido[] | null)?.map(p => p.id) ?? []
   let pronosticos: PronosticoFila[] = []
   if (partidoIds.length > 0) {
     const { data } = await supabase
@@ -86,15 +119,40 @@ export default async function PronosticosTodosPage({
     <div className="max-w-2xl mx-auto p-4 space-y-5">
       <h1 className="text-2xl font-bold">Pronósticos de la comunidad</h1>
 
-      <div className="space-y-1">
-        <DateNav fechaActual={fecha} hoy={hoy} basePath="/pronosticos-todos" />
-        <p className="text-sm text-gray-500 capitalize">{formatearFecha(fecha)}</p>
-      </div>
+      {/* Filtro de fase */}
+      {fasesDisponibles.length > 1 && (
+        <FaseFilter
+          fasesDisponibles={fasesDisponibles}
+          faseActiva={faseActiva}
+          basePath="/pronosticos-todos"
+          fechaActual={isGrupos ? fecha : undefined}
+        />
+      )}
 
+      {/* Navegación por fecha (solo Fase de Grupos) */}
+      {isGrupos && (
+        <div className="space-y-1">
+          <DateNav
+            fechaActual={fecha}
+            hoy={hoy}
+            basePath="/pronosticos-todos"
+            extraParams={{ fase: 'Fase de Grupos' }}
+          />
+          <p className="text-sm text-gray-500 capitalize">{formatearFecha(fecha)}</p>
+        </div>
+      )}
+
+      {/* Sin partidos */}
       {(!partidos || partidos.length === 0) && (
         <div className="border rounded-xl p-6 bg-white text-center space-y-1">
-          <p className="text-gray-600 font-medium">No hay partidos en vivo o finalizados para esta fecha.</p>
-          <p className="text-sm text-gray-400">Usá los botones de arriba para navegar a otra fecha.</p>
+          <p className="text-gray-600 font-medium">
+            {isGrupos
+              ? 'No hay partidos en vivo o finalizados para esta fecha.'
+              : `No hay partidos de ${faseActiva} comenzados aún.`}
+          </p>
+          {isGrupos && (
+            <p className="text-sm text-gray-400">Usá los botones de arriba para navegar a otra fecha.</p>
+          )}
         </div>
       )}
 
@@ -118,9 +176,9 @@ export default async function PronosticosTodosPage({
                 <p className="text-xs font-semibold text-gray-500">{partido.fase}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="font-bold text-sm">
-                    {partido.equipo_local}{' '}
+                    <Bandera equipo={partido.equipo_local} /> {partido.equipo_local}{' '}
                     <span className="font-normal text-gray-400">vs</span>{' '}
-                    {partido.equipo_visitante}
+                    <Bandera equipo={partido.equipo_visitante} /> {partido.equipo_visitante}
                   </p>
                   {estado === 'en_vivo' && (
                     <span className="animate-pulse bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
@@ -144,7 +202,7 @@ export default async function PronosticosTodosPage({
               </div>
             </div>
 
-            {/* Resumen de aciertos (solo partidos finalizados con pronósticos) */}
+            {/* Resumen de aciertos (solo partidos finalizados) */}
             {estado === 'finalizado' && filas.length > 0 && (
               <div className="px-4 py-2 border-b bg-white flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 <span className="font-medium text-green-700">✅ Exacto: {nExactos}</span>

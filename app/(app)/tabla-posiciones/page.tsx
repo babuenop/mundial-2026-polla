@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import Bandera from '@/app/components/Bandera'
 
-type ExactoRow = {
+type RankingStats = {
   user_id: string
-  partidos: { fecha_partido: string } | null
+  total_pronosticos: number
+  marcadores_exactos: number
+  ultimo_exacto_fecha: string | null
 }
 
 export default async function TablaPosicionesPage() {
@@ -10,45 +13,31 @@ export default async function TablaPosicionesPage() {
 
   const [
     { data: profiles },
-    { data: pronosticos },
-    { data: exactosRaw },
+    { data: statsRaw },
     { count: totalExactos },
   ] = await Promise.all([
-    supabase.from('profiles').select('id, apodo, nombre, puntaje_total, pago_confirmado'),
-    supabase.from('pronosticos').select('user_id'),
-    supabase.from('pronosticos')
-      .select('user_id, partidos(fecha_partido)')
-      .eq('puntos_obtenidos', 3),
+    supabase.from('profiles').select('id, apodo, nombre, puntaje_total, pago_confirmado, nacionalidad'),
+    supabase.rpc('get_ranking_stats'),
     supabase.from('pronosticos')
       .select('*', { count: 'exact', head: true })
       .eq('puntos_obtenidos', 3),
   ])
 
-  // Pronósticos realizados por usuario
-  const conteo = new Map<string, number>()
-  for (const p of pronosticos ?? []) {
-    conteo.set(p.user_id, (conteo.get(p.user_id) ?? 0) + 1)
-  }
-
-  // Marcadores exactos por usuario + fecha del último (ambos del mismo dataset)
-  const conteoExactos = new Map<string, number>()
-  const ultimoExacto  = new Map<string, string>()
-  for (const e of (exactosRaw as ExactoRow[] | null) ?? []) {
-    conteoExactos.set(e.user_id, (conteoExactos.get(e.user_id) ?? 0) + 1)
-    const fecha = e.partidos?.fecha_partido
-    if (fecha) {
-      const prev = ultimoExacto.get(e.user_id)
-      if (!prev || fecha > prev) ultimoExacto.set(e.user_id, fecha)
-    }
+  const statsMap = new Map<string, RankingStats>()
+  for (const s of (statsRaw as RankingStats[] | null) ?? []) {
+    statsMap.set(s.user_id, s)
   }
 
   const ranking = (profiles ?? [])
-    .map(p => ({
-      ...p,
-      pronosticos:  conteo.get(p.id) ?? 0,
-      exactos:      conteoExactos.get(p.id) ?? 0,
-      ultimoExacto: ultimoExacto.get(p.id) ?? null,
-    }))
+    .map(p => {
+      const s = statsMap.get(p.id)
+      return {
+        ...p,
+        pronosticos:  s?.total_pronosticos  ?? 0,
+        exactos:      s?.marcadores_exactos  ?? 0,
+        ultimoExacto: s?.ultimo_exacto_fecha ?? null,
+      }
+    })
     .sort((a, b) => {
       if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total  // 1. pts DESC
       if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos    // 2. pronósticos ASC
@@ -112,7 +101,12 @@ export default async function TablaPosicionesPage() {
           {ranking.map((r, i) => (
             <tr key={r.id} className={`border-t ${i < 3 ? 'font-semibold bg-yellow-50' : ''}`}>
               <td className="p-2">{i + 1}</td>
-              <td className="p-2">{r.apodo}</td>
+              <td className="p-2">
+                <span className="inline-flex items-center gap-1.5">
+                  {r.nacionalidad && <Bandera equipo={r.nacionalidad} />}
+                  {r.apodo}
+                </span>
+              </td>
               <td className="p-2 text-gray-500">{r.nombre}</td>
               <td className="p-2 text-center">
                 {r.pago_confirmado ? (

@@ -3,6 +3,7 @@ import { Partido } from '@/lib/types'
 import DateNav from '@/app/components/DateNav'
 import Link from 'next/link'
 import PronosticoEditForm from './PronosticoEditForm'
+import Bandera from '@/app/components/Bandera'
 
 const PANAMA_OFFSET_MS = 5 * 60 * 60 * 1000
 
@@ -94,7 +95,7 @@ export default async function AdminPronosticosPage({
             >
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
-                  <span className="font-medium">{p.equipo_local} vs {p.equipo_visitante}</span>
+                  <span className="font-medium"><Bandera equipo={p.equipo_local} /> {p.equipo_local} vs <Bandera equipo={p.equipo_visitante} /> {p.equipo_visitante}</span>
                   <span className="text-gray-400 ml-2 text-xs">{p.fase}</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -117,7 +118,7 @@ export default async function AdminPronosticosPage({
       {partidoSel && (
         <div>
           <h2 className="text-base font-semibold mb-3">
-            Pronósticos — {partidoSel.equipo_local} vs {partidoSel.equipo_visitante}
+            Pronósticos — <Bandera equipo={partidoSel.equipo_local} /> {partidoSel.equipo_local} vs <Bandera equipo={partidoSel.equipo_visitante} /> {partidoSel.equipo_visitante}
             {partidoSel.finalizado && (
               <span className="ml-2 text-sm font-normal text-gray-500">
                 (resultado oficial: {partidoSel.goles_local} – {partidoSel.goles_visitante})
