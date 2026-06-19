@@ -1,11 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
-import Bandera from '@/app/components/Bandera'
+import RankingTable, { type RankingRow } from './RankingTable'
 
 type RankingStats = {
   user_id: string
   total_pronosticos: number
   marcadores_exactos: number
   ultimo_exacto_fecha: string | null
+}
+
+type HistorialPosicion = {
+  user_id: string
+  posicion_actual: number
+  posicion_anterior: number | null
+  diferencia: number | null
 }
 
 export default async function TablaPosicionesPage() {
@@ -15,12 +22,15 @@ export default async function TablaPosicionesPage() {
     { data: profiles },
     { data: statsRaw },
     { count: totalExactos },
+    { data: historialRaw },
   ] = await Promise.all([
     supabase.from('profiles').select('id, apodo, puntaje_total, pago_confirmado, nacionalidad'),
     supabase.rpc('get_ranking_stats'),
-    supabase.from('pronosticos')
+    supabase
+      .from('pronosticos')
       .select('*', { count: 'exact', head: true })
       .eq('puntos_obtenidos', 3),
+    supabase.rpc('get_historial_posiciones'),
   ])
 
   const statsMap = new Map<string, RankingStats>()
@@ -28,27 +38,39 @@ export default async function TablaPosicionesPage() {
     statsMap.set(s.user_id, s)
   }
 
-  const ranking = (profiles ?? [])
+  const historialMap = new Map<string, HistorialPosicion>()
+  for (const h of (historialRaw as HistorialPosicion[] | null) ?? []) {
+    historialMap.set(h.user_id, h)
+  }
+
+  const ranked = (profiles ?? [])
     .map(p => {
       const s = statsMap.get(p.id)
+      const h = historialMap.get(p.id)
       return {
-        ...p,
-        pronosticos:  s?.total_pronosticos  ?? 0,
-        exactos:      s?.marcadores_exactos  ?? 0,
-        ultimoExacto: s?.ultimo_exacto_fecha ?? null,
+        id:              p.id,
+        apodo:           p.apodo,
+        puntaje_total:   p.puntaje_total,
+        pago_confirmado: p.pago_confirmado,
+        nacionalidad:    p.nacionalidad ?? null,
+        pronosticos:     s?.total_pronosticos  ?? 0,
+        exactos:         s?.marcadores_exactos  ?? 0,
+        ultimoExacto:    s?.ultimo_exacto_fecha ?? null,
+        diferencia:      h?.diferencia ?? null,
       }
     })
     .sort((a, b) => {
-      if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total  // 1. pts DESC
-      if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos    // 2. pronósticos ASC
-      if (b.exactos       !== a.exactos)       return b.exactos       - a.exactos        // 3. exactos DESC
-      if (a.ultimoExacto === null && b.ultimoExacto === null) return 0                   // 4. último exacto DESC
+      if (b.puntaje_total !== a.puntaje_total) return b.puntaje_total - a.puntaje_total
+      if (a.pronosticos   !== b.pronosticos)   return a.pronosticos   - b.pronosticos
+      if (b.exactos       !== a.exactos)       return b.exactos       - a.exactos
+      if (a.ultimoExacto === null && b.ultimoExacto === null) return 0
       if (a.ultimoExacto === null) return 1
       if (b.ultimoExacto === null) return -1
       return b.ultimoExacto.localeCompare(a.ultimoExacto)
     })
 
-  // KPIs
+  const ranking: RankingRow[] = ranked.map(({ ultimoExacto: _u, ...rest }) => rest)
+
   const activos  = (profiles ?? []).filter(p => p.pago_confirmado)
   const nActivos = activos.length
   const promedio = nActivos > 0
@@ -60,7 +82,6 @@ export default async function TablaPosicionesPage() {
     <div className="max-w-2xl mx-auto p-4 space-y-6">
       <h1 className="text-2xl font-bold">🏆 Tabla de Posiciones</h1>
 
-      {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border rounded-2xl shadow-sm p-4 flex flex-col items-center gap-1 text-center">
           <span className="text-3xl">👥</span>
@@ -84,45 +105,7 @@ export default async function TablaPosicionesPage() {
         </div>
       </div>
 
-      {/* Ranking table */}
-      <table className="w-full border rounded-lg overflow-hidden text-sm">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="w-6 text-left px-2 py-2">#</th>
-            <th className="w-8 px-1 py-2"></th>
-            <th className="text-left px-2 py-2">Apodo</th>
-            <th className="hidden sm:table-cell text-center px-2 py-2">Estado</th>
-            <th className="text-right px-2 py-2">Pronósticos</th>
-            <th className="text-right px-2 py-2">🎯</th>
-            <th className="text-right px-2 py-2">Puntos</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranking.map((r, i) => (
-            <tr key={r.id} className={`border-t ${i < 3 ? 'font-semibold bg-yellow-50' : ''}`}>
-              <td className="w-6 px-2 py-2">{i + 1}</td>
-              <td className="w-8 px-1 py-2 text-center">
-                {r.nacionalidad && <Bandera equipo={r.nacionalidad} />}
-              </td>
-              <td className="px-2 py-2">{r.apodo}</td>
-              <td className="hidden sm:table-cell px-2 py-2 text-center">
-                {r.pago_confirmado ? (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                    ✅ Activo
-                  </span>
-                ) : (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
-                    ⏳ Pago pendiente
-                  </span>
-                )}
-              </td>
-              <td className="px-2 py-2 text-right text-gray-500">{r.pronosticos}</td>
-              <td className="px-2 py-2 text-right text-green-700 font-medium">{r.exactos}</td>
-              <td className="px-2 py-2 text-right">{r.puntaje_total}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <RankingTable ranking={ranking} />
     </div>
   )
 }
