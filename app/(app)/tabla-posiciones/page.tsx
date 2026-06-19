@@ -88,24 +88,24 @@ export default async function TablaPosicionesPage() {
       <table className="w-full border rounded-lg overflow-hidden text-sm">
         <thead className="bg-gray-100">
           <tr>
-            <th className="text-left p-2">#</th>
-            <th className="w-10 p-2"></th>
-            <th className="text-left p-2">Apodo</th>
-            <th className="text-center p-2">Estado</th>
-            <th className="text-right p-2">Pronósticos</th>
-            <th className="text-right p-2">🎯</th>
-            <th className="text-right p-2">Puntos</th>
+            <th className="w-6 text-left px-2 py-2">#</th>
+            <th className="w-8 px-1 py-2"></th>
+            <th className="text-left px-2 py-2">Apodo</th>
+            <th className="hidden sm:table-cell text-center px-2 py-2">Estado</th>
+            <th className="text-right px-2 py-2">Pronósticos</th>
+            <th className="text-right px-2 py-2">🎯</th>
+            <th className="text-right px-2 py-2">Puntos</th>
           </tr>
         </thead>
         <tbody>
           {ranking.map((r, i) => (
             <tr key={r.id} className={`border-t ${i < 3 ? 'font-semibold bg-yellow-50' : ''}`}>
-              <td className="p-2">{i + 1}</td>
-              <td className="w-10 p-2 text-center">
+              <td className="w-6 px-2 py-2">{i + 1}</td>
+              <td className="w-8 px-1 py-2 text-center">
                 {r.nacionalidad && <Bandera equipo={r.nacionalidad} />}
               </td>
-              <td className="p-2">{r.apodo}</td>
-              <td className="p-2 text-center">
+              <td className="px-2 py-2">{r.apodo}</td>
+              <td className="hidden sm:table-cell px-2 py-2 text-center">
                 {r.pago_confirmado ? (
                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                     ✅ Activo
@@ -116,9 +116,9 @@ export default async function TablaPosicionesPage() {
                   </span>
                 )}
               </td>
-              <td className="p-2 text-right text-gray-500">{r.pronosticos}</td>
-              <td className="p-2 text-right text-green-700 font-medium">{r.exactos}</td>
-              <td className="p-2 text-right">{r.puntaje_total}</td>
+              <td className="px-2 py-2 text-right text-gray-500">{r.pronosticos}</td>
+              <td className="px-2 py-2 text-right text-green-700 font-medium">{r.exactos}</td>
+              <td className="px-2 py-2 text-right">{r.puntaje_total}</td>
             </tr>
           ))}
         </tbody>
