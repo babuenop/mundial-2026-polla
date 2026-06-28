@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Partido } from '@/lib/types'
 import Bandera from '@/app/components/Bandera'
-import { SIGUIENTE_SLOT, calcularGanador } from '@/lib/bracketProgression'
 
 interface Props {
   partido: Partido
@@ -55,21 +54,6 @@ export default function ResultadoForm({ partido }: Props) {
       setLoading(false)
       setMensaje(`Error: ${error.message}`)
       return
-    }
-
-    // Propagate winner to next bracket slot
-    if (partido.bracket_slot) {
-      const pL = esElim && conPenales && penalesLocal !== '' ? Number(penalesLocal) : null
-      const pV = esElim && conPenales && penalesVisitante !== '' ? Number(penalesVisitante) : null
-      const ganador = calcularGanador(partido.equipo_local, partido.equipo_visitante, golesLocal, golesVisitante, pL, pV)
-      const siguiente = SIGUIENTE_SLOT[partido.bracket_slot]
-      if (ganador && siguiente) {
-        const campo = siguiente.posicion === 'local' ? 'equipo_local' : 'equipo_visitante'
-        await supabase
-          .from('partidos')
-          .update({ [campo]: ganador })
-          .eq('bracket_slot', siguiente.slot)
-      }
     }
 
     setLoading(false)

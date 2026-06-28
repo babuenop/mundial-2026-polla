@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Bandera from '@/app/components/Bandera'
 import { Partido } from '@/lib/types'
-import { SIGUIENTE_SLOT, calcularGanador } from '@/lib/bracketProgression'
 
 type Pronostico = {
   partido_id: string
@@ -66,20 +65,6 @@ function ModalResultado({
       .eq('id', partido.id)
 
     if (err) { setLoading(false); setError(err.message); return }
-
-    // 2. Propagate winner to next bracket slot (if bracket_slot is set)
-    if (partido.bracket_slot && gL != null && gV != null) {
-      const ganador = calcularGanador(partido.equipo_local, partido.equipo_visitante, gL, gV, pL, pV)
-      const siguiente = SIGUIENTE_SLOT[partido.bracket_slot]
-
-      if (ganador && siguiente) {
-        const campo = siguiente.posicion === 'local' ? 'equipo_local' : 'equipo_visitante'
-        await supabase
-          .from('partidos')
-          .update({ [campo]: ganador })
-          .eq('bracket_slot', siguiente.slot)
-      }
-    }
 
     setLoading(false)
     onGuardado()

@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import { getCodigoISO } from '@/lib/banderas'
 import Bandera from '@/app/components/Bandera'
 import { Partido } from '@/lib/types'
-import { SIGUIENTE_SLOT, calcularGanador } from '@/lib/bracketProgression'
 
 // ── Bracket slot arrays ───────────────────────────────────────────────────────
 const LEFT_COLS: string[][] = [
@@ -69,14 +68,6 @@ function Modal({ partido, onClose, onSaved }: {
       .update({ goles_local: golesL, goles_visitante: golesV, penales_local: penL, penales_visitante: penV, finalizado: true })
       .eq('id', partido.id)
     if (error) { setSaving(false); setErr(error.message); return }
-    if (partido.bracket_slot && golesL != null && golesV != null) {
-      const ganador = calcularGanador(partido.equipo_local, partido.equipo_visitante, golesL, golesV, penL, penV)
-      const sig = SIGUIENTE_SLOT[partido.bracket_slot]
-      if (ganador && sig) {
-        const campo = sig.posicion === 'local' ? 'equipo_local' : 'equipo_visitante'
-        await supabase.from('partidos').update({ [campo]: ganador }).eq('bracket_slot', sig.slot)
-      }
-    }
     setSaving(false); onSaved()
   }
 
@@ -265,12 +256,12 @@ function ListCard({ partido, isAdmin, onEdit }: { partido: Partido; isAdmin: boo
       </div>
       <div className="space-y-2">
         <div className={`flex items-center gap-2 ${wL ? 'font-bold' : ''}`}>
-          {!isPending && <Bandera equipo={partido.equipo_local} />}
+          {partido.equipo_local !== 'Por definir' && <Bandera equipo={partido.equipo_local} />}
           <span className="flex-1">{partido.equipo_local}</span>
           <span className="text-xl font-bold tabular-nums">{partido.goles_local ?? '–'}</span>
         </div>
         <div className={`flex items-center gap-2 ${wV ? 'font-bold' : ''}`}>
-          {!isPending && <Bandera equipo={partido.equipo_visitante} />}
+          {partido.equipo_visitante !== 'Por definir' && <Bandera equipo={partido.equipo_visitante} />}
           <span className="flex-1">{partido.equipo_visitante}</span>
           <span className="text-xl font-bold tabular-nums">{partido.goles_visitante ?? '–'}</span>
         </div>
