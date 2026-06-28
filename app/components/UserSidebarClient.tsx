@@ -13,6 +13,7 @@ interface UserSidebarClientProps {
 
 const APP_LINKS = [
   { href: '/pronosticos',       label: 'Pronósticos' },
+  { href: '/eliminatorias',     label: 'Eliminatorias' },
   { href: '/tabla-posiciones',  label: 'Tabla de Posiciones' },
   { href: '/pronosticos-todos', label: 'Comunidad' },
   { href: '/perfil',            label: 'Mi Perfil' },

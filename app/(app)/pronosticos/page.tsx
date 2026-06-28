@@ -75,8 +75,8 @@ export default async function PronosticosPage({
           .eq('fase', faseReq)
           .order('fecha_partido', { ascending: true }),
 
-    // All own pronosticos (needed for map + progress)
-    supabase.from('pronosticos').select('*').eq('user_id', user.id),
+    // All own pronosticos (needed for map + progress + fase breakdown)
+    supabase.from('pronosticos').select('*, partidos(fase)').eq('user_id', user.id),
 
     // Profile
     supabase.from('profiles').select('puntaje_total, pago_confirmado').eq('id', user.id).single(),
@@ -98,6 +98,19 @@ export default async function PronosticosPage({
 
   // Pronosticos map (partido_id → pronostico)
   const pronosticosMap = new Map(pronosticosRaw?.map(p => [p.partido_id, p]))
+
+  // Points breakdown by FaseCategoria (only fases with scored pronosticos)
+  const puntajesPorCatMap = new Map<FaseCategoria, number>()
+  for (const pr of pronosticosRaw ?? []) {
+    const raw = pr.partidos as unknown as { fase: string } | { fase: string }[] | null
+    const faseStr = (Array.isArray(raw) ? raw[0]?.fase : raw?.fase) ?? ''
+    if (!faseStr || pr.puntos_obtenidos == null) continue
+    const cat = normalizarFase(faseStr)
+    puntajesPorCatMap.set(cat, (puntajesPorCatMap.get(cat) ?? 0) + pr.puntos_obtenidos)
+  }
+  const puntajesPorFase = FASES_ORDEN
+    .filter(f => puntajesPorCatMap.has(f))
+    .map(f => ({ fase: f, puntos: puntajesPorCatMap.get(f)! }))
 
   // Progress for the active fase
   const totalEnFase = todosFaseIds?.length ?? 0
@@ -121,17 +134,39 @@ export default async function PronosticosPage({
         </div>
       )}
 
-      {/* Resumen global */}
+      {/* Resumen global por fase */}
       {totalFinalizados > 0 && (
-        <div className="bg-gray-50 border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <p className="text-xs text-gray-500 mb-0.5">Total acumulado</p>
+        <div className="bg-white border rounded-xl p-4 space-y-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Puntos acumulados</p>
+
+          {puntajesPorFase.length === 0 ? (
             <p className="text-3xl font-bold text-gray-900">
-              {profile?.puntaje_total ?? 0}
+              0 <span className="text-lg font-normal text-gray-500">pts</span>
+            </p>
+          ) : puntajesPorFase.length === 1 ? (
+            <p className="text-3xl font-bold text-gray-900">
+              {puntajesPorFase[0].puntos}
               <span className="text-lg font-normal text-gray-500 ml-1">pts</span>
             </p>
-          </div>
-          <p className="text-sm text-gray-500">
+          ) : (
+            <>
+              {puntajesPorFase.map(({ fase, puntos }) => (
+                <div key={fase} className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">{fase}</span>
+                  <span className="font-semibold text-gray-800 tabular-nums">{puntos} pts</span>
+                </div>
+              ))}
+              <div className="border-t pt-2 flex justify-between items-center">
+                <span className="text-sm font-semibold text-gray-700">Total</span>
+                <span className="text-2xl font-bold text-gray-900 tabular-nums">
+                  {puntajesPorFase.reduce((s, f) => s + f.puntos, 0)}
+                  <span className="text-base font-normal text-gray-500 ml-1">pts</span>
+                </span>
+              </div>
+            </>
+          )}
+
+          <p className="text-sm text-gray-500 pt-0.5">
             Jugaste{' '}
             <span className="font-semibold text-gray-700">{jugadosGlobal}</span>
             {' '}de{' '}

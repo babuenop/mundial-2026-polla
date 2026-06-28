@@ -15,6 +15,9 @@ export interface Partido {
   goles_local: number | null
   goles_visitante: number | null
   finalizado: boolean
+  penales_local?: number | null
+  penales_visitante?: number | null
+  bracket_slot?: string | null
 }
 
 export interface Pronostico {

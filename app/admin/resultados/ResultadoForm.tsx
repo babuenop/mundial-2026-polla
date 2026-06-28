@@ -5,9 +5,15 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Partido } from '@/lib/types'
 import Bandera from '@/app/components/Bandera'
+import { SIGUIENTE_SLOT, calcularGanador } from '@/lib/bracketProgression'
 
 interface Props {
   partido: Partido
+}
+
+// Whether this fase uses penalty shootouts
+function esFaseEliminatoria(fase: string): boolean {
+  return !fase.startsWith('Group')
 }
 
 export default function ResultadoForm({ partido }: Props) {
@@ -16,30 +22,59 @@ export default function ResultadoForm({ partido }: Props) {
 
   const [golesLocal, setGolesLocal] = useState<number>(partido.goles_local ?? 0)
   const [golesVisitante, setGolesVisitante] = useState<number>(partido.goles_visitante ?? 0)
+  const [conPenales, setConPenales] = useState(
+    partido.penales_local != null || partido.penales_visitante != null
+  )
+  const [penalesLocal, setPenalesLocal] = useState<number | ''>(partido.penales_local ?? '')
+  const [penalesVisitante, setPenalesVisitante] = useState<number | ''>(partido.penales_visitante ?? '')
   const [loading, setLoading] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
+
+  const esElim = esFaseEliminatoria(partido.fase)
 
   const handleSubmit = async () => {
     setLoading(true)
     setMensaje(null)
 
+    const payload: Record<string, unknown> = {
+      goles_local: golesLocal,
+      goles_visitante: golesVisitante,
+      finalizado: true,
+    }
+    if (esElim) {
+      payload.penales_local = conPenales && penalesLocal !== '' ? penalesLocal : null
+      payload.penales_visitante = conPenales && penalesVisitante !== '' ? penalesVisitante : null
+    }
+
     const { error } = await supabase
       .from('partidos')
-      .update({
-        goles_local: golesLocal,
-        goles_visitante: golesVisitante,
-        finalizado: true,
-      })
+      .update(payload)
       .eq('id', partido.id)
 
-    setLoading(false)
-
     if (error) {
+      setLoading(false)
       setMensaje(`Error: ${error.message}`)
-    } else {
-      setMensaje('Resultado guardado. Puntos calculados.')
-      router.refresh()
+      return
     }
+
+    // Propagate winner to next bracket slot
+    if (partido.bracket_slot) {
+      const pL = esElim && conPenales && penalesLocal !== '' ? Number(penalesLocal) : null
+      const pV = esElim && conPenales && penalesVisitante !== '' ? Number(penalesVisitante) : null
+      const ganador = calcularGanador(partido.equipo_local, partido.equipo_visitante, golesLocal, golesVisitante, pL, pV)
+      const siguiente = SIGUIENTE_SLOT[partido.bracket_slot]
+      if (ganador && siguiente) {
+        const campo = siguiente.posicion === 'local' ? 'equipo_local' : 'equipo_visitante'
+        await supabase
+          .from('partidos')
+          .update({ [campo]: ganador })
+          .eq('bracket_slot', siguiente.slot)
+      }
+    }
+
+    setLoading(false)
+    setMensaje('Resultado guardado.')
+    router.refresh()
   }
 
   return (
@@ -59,7 +94,7 @@ export default function ResultadoForm({ partido }: Props) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="number"
             min={0}
@@ -77,6 +112,40 @@ export default function ResultadoForm({ partido }: Props) {
             onChange={(e) => setGolesVisitante(Number(e.target.value))}
             className="w-14 text-center border rounded-md py-1"
           />
+          {esElim && (
+            <>
+              <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer ml-1">
+                <input
+                  type="checkbox"
+                  checked={conPenales}
+                  onChange={e => setConPenales(e.target.checked)}
+                  className="rounded"
+                />
+                Pen.
+              </label>
+              {conPenales && (
+                <>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="P.L"
+                    value={penalesLocal}
+                    onChange={e => setPenalesLocal(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-12 text-center border rounded-md py-1 text-xs"
+                  />
+                  <span className="text-gray-400 text-xs">-</span>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="P.V"
+                    value={penalesVisitante}
+                    onChange={e => setPenalesVisitante(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="w-12 text-center border rounded-md py-1 text-xs"
+                  />
+                </>
+              )}
+            </>
+          )}
           <button
             onClick={handleSubmit}
             disabled={loading}

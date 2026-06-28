@@ -8,6 +8,7 @@ export type RankingRow = {
   id: string
   apodo: string
   puntaje_total: number
+  puntos_fase: number
   pago_confirmado: boolean
   nacionalidad: string | null
   pronosticos: number
@@ -185,7 +186,12 @@ export default function RankingTable({ ranking }: { ranking: RankingRow[] }) {
               </td>
               <td className="px-2 py-2 text-right text-gray-500">{r.pronosticos}</td>
               <td className="px-2 py-2 text-right text-green-700 font-medium">{r.exactos}</td>
-              <td className="px-2 py-2 text-right">{r.puntaje_total}</td>
+              <td className="px-2 py-2 text-right">
+                <span className="font-semibold">{r.puntos_fase}</span>
+                {r.puntos_fase !== r.puntaje_total && (
+                  <span className="block text-xs text-gray-400 leading-none">{r.puntaje_total} total</span>
+                )}
+              </td>
             </tr>
             {expandedId === r.id && (
               <tr className="border-t">
